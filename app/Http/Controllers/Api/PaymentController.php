@@ -7,11 +7,53 @@ use App\Models\Order;
 use App\Models\Payment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 use Stripe\Exception\ApiErrorException;
 use Stripe\StripeClient;
 
+#[OA\Tag(
+    name: 'Payments',
+    description: 'Payment operations'
+)]
 class PaymentController extends Controller
 {
+    #[OA\Post(
+        path: '/api/orders/{order}/payment',
+        summary: 'Create a Stripe PaymentIntent',
+        description: 'Creates a Stripe PaymentIntent for the specified pending order.',
+        tags: ['Payments'],
+        security: [['sanctum' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'order',
+                description: 'Order ID',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(
+                    type: 'integer',
+                    example: 1
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'Payment intent created successfully'
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Unauthorized'
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Order cannot be paid'
+            ),
+            new OA\Response(
+                response: 502,
+                description: 'Stripe payment error'
+            )
+        ]
+    )]
     public function createPaymentIntent(
         Request $request,
         Order $order
@@ -38,10 +80,12 @@ class PaymentController extends Controller
             $paymentIntent = $stripe->paymentIntents->create([
                 'amount' => (int) round($order->total * 100),
                 'currency' => 'usd',
+
                 'automatic_payment_methods' => [
                     'enabled' => true,
                     'allow_redirects' => 'never',
                 ],
+
                 'metadata' => [
                     'order_id' => $order->id,
                     'user_id' => $order->user_id,

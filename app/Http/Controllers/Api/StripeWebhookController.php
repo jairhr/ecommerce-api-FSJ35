@@ -8,12 +8,54 @@ use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use OpenApi\Attributes as OA;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\Webhook;
 use UnexpectedValueException;
 
+#[OA\Tag(
+    name: 'Stripe Webhook',
+    description: 'Stripe webhook operations'
+)]
 class StripeWebhookController extends Controller
 {
+    #[OA\Post(
+        path: '/api/stripe/webhook',
+        summary: 'Handle Stripe webhook',
+        description: 'Receives and processes Stripe payment events.',
+        tags: ['Stripe Webhook'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'application/json',
+                schema: new OA\Schema(
+                    type: 'object'
+                )
+            )
+        ),
+        parameters: [
+            new OA\Parameter(
+                name: 'Stripe-Signature',
+                description: 'Stripe webhook signature used to verify the request.',
+                in: 'header',
+                required: true,
+                schema: new OA\Schema(
+                    type: 'string',
+                    example: 't=1672531200,v1=example_signature'
+                )
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Webhook received successfully'
+            ),
+            new OA\Response(
+                response: 400,
+                description: 'Invalid payload or signature'
+            )
+        ]
+    )]
     public function handle(Request $request): Response
     {
         $payload = $request->getContent();
